@@ -74,6 +74,8 @@ public class KebaUdpMockStation extends Thread {
                         }
                         // transform csv lines (; separated) back to json lines (<LF> separated)
                         text = prevLine.replace(';', (char) 0x0A);
+                        String secondPart = text.substring(2);
+                       // text =  "{\"className:\":\"Session\",\n" + secondPart;
                         packet.setData(text.getBytes(StandardCharsets.UTF_8));
                         socket.send(packet);
                     } // report 100?

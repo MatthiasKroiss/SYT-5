@@ -1,5 +1,7 @@
 package client;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -27,13 +29,29 @@ public class Client extends Thread {
             int counter = 100;
             socket = new DatagramSocket();
             address = InetAddress.getByName("localhost");
+
+            // Get all reports 100-130
             while (counter <= 130) {
-                JsonObject received = sendCommand("report " + counter);
+
+               Session session = sendCommandSession("report " + counter);
+
+                if (tag_kwh.containsKey(session.getRfidTag())) {
+                    // If it exists, add up the eEnd value
+                    double currentKW = tag_kwh.get(session.getRfidTag());
+                    tag_kwh.put(session.getRfidTag(), (double) Math.round((currentKW + (double) session.getePres() /10000)*100)/100);
+                } else {
+                    // If it doesn't exist, add it to the map with the corresponding eEnd value
+                    tag_kwh.put(session.getRfidTag(), (double) Math.round(((float) session.getePres() /10000)*100)/100);
+                }
+
+
+
+               /* JsonObject received = sendCommand("report " + counter);
                 System.out.println(received.get("RFID tag"));
                 String rfidTag = received.get("RFID tag").getAsString();
-                double eStart = received.get("E start").getAsDouble();
+               // double eStart = received.get("E start").getAsDouble();
                 double eEnd = received.get("E pres").getAsDouble() / 10000;
-                double dif = eEnd - eStart;
+                //  double dif = eEnd - eStart;
                 if (tag_kwh.containsKey(rfidTag)) {
                     // If it exists, add up the eEnd value
                     double currentKW = tag_kwh.get(rfidTag);
@@ -42,7 +60,7 @@ public class Client extends Thread {
                     // If it doesn't exist, add it to the map with the corresponding eEnd value
                     tag_kwh.put(rfidTag, (double) Math.round(eEnd*100)/100);
                 }
-
+*/
                 counter++;
             }
             socket.close();
@@ -82,6 +100,25 @@ public class Client extends Thread {
         JsonObject jsonObject = JsonParser.parseString(received)
                 .getAsJsonObject();
         return jsonObject;
+    }
+
+    public Session sendCommandSession(String msg) throws IOException {
+        Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd HH:mm:ss.SSS").create();
+        sendBuffer = msg.getBytes();
+        DatagramPacket packet
+                = new DatagramPacket(sendBuffer, sendBuffer.length, address, 7090);
+        socket.send(packet);
+        packet = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+        socket.receive(packet);
+        String received = new String(
+                packet.getData(), 0, packet.getLength());
+        System.out.println(received);
+        JsonObject jsonObject = JsonParser.parseString(received).getAsJsonObject();
+        System.out.println(jsonObject);
+        Session session = gson.fromJson(received, Session.class);
+
+        return session;
+
     }
 
     public static void main(String[] args) {
